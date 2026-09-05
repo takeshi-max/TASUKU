@@ -2,256 +2,383 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>3D Race Game - Generated Car & Circuit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quest Routine - ゲーミフィケーション習慣化アプリ</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-    #ui {
-      position: absolute; top: 15px; left: 15px; color: white;
-      text-shadow: 2px 2px 4px black; pointer-events: none; z-index: 10;
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-color: #f59e0b;
+      --accent-green: #10b981;
+      --text-color: #f8fafc;
+      --text-muted: #94a3b8;
     }
-    .speed-badge { font-size: 32px; font-weight: bold; color: #38bdf8; }
-    .controls {
-      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 15px; z-index: 10;
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    .btn {
-      width: 70px; height: 70px; font-size: 24px; font-weight: bold;
-      background: rgba(255, 255, 255, 0.25); color: white; border: 2px solid rgba(255, 255, 255, 0.8);
-      border-radius: 50%; backdrop-filter: blur(8px); touch-action: manipulation;
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
     }
-    .btn:active { background: rgba(56, 189, 248, 0.8); }
+
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* プレイヤー ステータスヘッダー */
+    .status-card {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      padding: 20px;
+      border-radius: 16px;
+      border: 2px solid #3b82f6;
+      box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .status-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .player-level {
+      font-size: 24px;
+      font-weight: 800;
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .streak-badge {
+      background: #7c2d12;
+      color: #fdba74;
+      border: 1px solid #f97316;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    /* XPバー */
+    .xp-container {
+      margin-top: 10px;
+    }
+    .xp-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .xp-bar-bg {
+      background: #0f172a;
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #475569;
+    }
+    .xp-bar-fill {
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      height: 100%;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    /* 新規クエスト入力エリア */
+    .add-quest-box {
+      display: flex;
+      gap: 10px;
+    }
+    .add-quest-box input {
+      flex: 1;
+      background: var(--card-bg);
+      border: 1px solid #475569;
+      padding: 12px 16px;
+      border-radius: 12px;
+      color: var(--text-color);
+      font-size: 15px;
+      outline: none;
+    }
+    .add-quest-box input:focus {
+      border-color: #3b82f6;
+    }
+    .add-btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 0 18px;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 20px;
+      transition: transform 0.1s, background-color 0.2s;
+    }
+    .add-btn:active {
+      transform: scale(0.95);
+      background: #1d4ed8;
+    }
+
+    /* クエスト一覧 */
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .quest-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .quest-card {
+      background: var(--card-bg);
+      padding: 16px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #334155;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .quest-card:hover {
+      border-color: #475569;
+    }
+    .quest-card.completed {
+      opacity: 0.6;
+      border-color: var(--accent-green);
+      background: #064e3b;
+    }
+    .quest-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .quest-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .quest-title.completed-text {
+      text-decoration: line-through;
+    }
+    .quest-reward {
+      font-size: 12px;
+      color: var(--accent-color);
+      font-weight: bold;
+    }
+    .complete-btn {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .complete-btn:hover {
+      background: #059669;
+    }
+    .complete-btn.done {
+      background: #475569;
+      cursor: default;
+    }
+
+    /* レベルアップ ポップアップ演出 */
+    .levelup-popup {
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: rgba(15, 23, 42, 0.95);
+      border: 3px solid #f59e0b;
+      padding: 30px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(245, 158, 11, 0.5);
+      z-index: 100;
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .levelup-popup.show {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .levelup-title {
+      font-size: 28px;
+      color: #f59e0b;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    /* レスポンシブ調整 */
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+    }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-  <div id="ui">
-    <h2>🏎️ 3D CIRCUIT DRIVE</h2>
-    <div class="speed-badge"><span id="speed">0</span> <small style="font-size: 16px;">km/h</small></div>
+  <div class="app-container">
+    <!-- ステータスヘッダー -->
+    <div class="status-card">
+      <div class="status-header">
+        <div class="player-level">
+          <span>🛡️ LV.<span id="level">1</span></span>
+        </div>
+        <div class="streak-badge">🔥 <span id="streak">3</span> 日連続達成</div>
+      </div>
+      <div class="xp-container">
+        <div class="xp-label">
+          <span>NEXT LEVEL</span>
+          <span><span id="currentXp">0</span> / <span id="maxXp">100</span> XP</span>
+        </div>
+        <div class="xp-bar-bg">
+          <div class="xp-bar-fill" id="xpBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- クエスト追加 -->
+    <div class="add-quest-box">
+      <input type="text" id="questInput" placeholder="新しい習慣クエストを入力（例: 筋トレ15分）">
+      <button class="add-btn" id="addBtn">＋</button>
+    </div>
+
+    <!-- クエストリスト -->
+    <div>
+      <div class="section-title">⚔️ 今日の習慣クエスト</div>
+      <div class="quest-list" id="questList"></div>
+    </div>
   </div>
 
-  <div class="controls">
-    <button class="btn" id="btnLeft">◀</button>
-    <button class="btn" id="btnAccel">▲</button>
-    <button class="btn" id="btnBrake">▼</button>
-    <button class="btn" id="btnRight">▶</button>
+  <!-- レベルアップモーダル -->
+  <div class="levelup-popup" id="levelUpModal">
+    <div class="levelup-title">🎉 LEVEL UP!!</div>
+    <p style="margin-bottom: 15px;">素晴らしい！レベル <span id="newLevelText">2</span> に到達しました！</p>
+    <button class="complete-btn" onclick="closeModal()">OK</button>
   </div>
 
-<script>
-  // --- 1. シーン・カメラ・レンダラーの設定 ---
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x60a5fa); // 鮮やかな青空
-  scene.fog = new THREE.FogExp2(0x60a5fa, 0.008); // 奥行きを出すフォグ
+  <script>
+    // 初期データ
+    let state = {
+      level: 1,
+      xp: 30,
+      maxXp: 100,
+      streak: 3,
+      quests: [
+        { id: 1, title: "朝のコップ1杯の水を飲む", xp: 30, completed: false },
+        { id: 2, title: "10分間のウォーキング・散歩", xp: 40, completed: false },
+        { id: 3, title: "読書 15分", xp: 50, completed: false }
+      ]
+    };
 
-  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  document.body.appendChild(renderer.domElement);
+    // UI要素の取得
+    const levelEl = document.getElementById('level');
+    const streakEl = document.getElementById('streak');
+    const currentXpEl = document.getElementById('currentXp');
+    const maxXpEl = document.getElementById('maxXp');
+    const xpBarEl = document.getElementById('xpBar');
+    const questListEl = document.getElementById('questList');
+    const questInputEl = document.getElementById('questInput');
+    const addBtnEl = document.getElementById('addBtn');
+    const levelUpModal = document.getElementById('levelUpModal');
 
-  // --- 2. 太陽光と照明 ---
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
+    // UI更新関数
+    function render() {
+      levelEl.textContent = state.level;
+      streakEl.textContent = state.streak;
+      currentXpEl.textContent = state.xp;
+      maxXpEl.textContent = state.maxXp;
+      
+      const xpPercent = (state.xp / state.maxXp) * 100;
+      xpBarEl.style.width = `${xpPercent}%`;
 
-  const sun = new THREE.DirectionalLight(0xfffbeb, 1.2);
-  sun.position.set(100, 150, 50);
-  sun.castShadow = true;
-  sun.shadow.mapSize.width = 2048;
-  sun.shadow.mapSize.height = 2048;
-  sun.shadow.camera.near = 0.5;
-  sun.shadow.camera.far = 300;
-  sun.shadow.camera.left = -100;
-  sun.shadow.camera.right = 100;
-  sun.shadow.camera.top = 100;
-  sun.shadow.camera.bottom = -100;
-  scene.add(sun);
-
-  // --- 3. アスファルト道路とコース縁石 ---
-  // 広大な芝生
-  const grassGeo = new THREE.PlaneGeometry(1000, 1000);
-  const grassMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.9 });
-  const grass = new THREE.Mesh(grassGeo, grassMat);
-  grass.rotation.x = -Math.PI / 2;
-  grass.receiveShadow = true;
-  scene.add(grass);
-
-  // 幅広アスファルト道路（直線＆広場コース）
-  const roadGeo = new THREE.PlaneGeometry(40, 1000);
-  const roadMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.7 });
-  const road = new THREE.Mesh(roadGeo, roadMat);
-  road.rotation.x = -Math.PI / 2;
-  road.position.y = 0.01;
-  road.receiveShadow = true;
-  scene.add(road);
-
-  // 赤と白の縁石（ゼブラゾーン）を両脇に作成
-  for (let z = -500; z < 500; z += 10) {
-    const isRed = (Math.abs(z) / 10) % 2 === 0;
-    const curbMat = new THREE.MeshStandardMaterial({ color: isRed ? 0xef4444 : 0xf8fafc });
-    
-    // 左縁石
-    const curbL = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 10), curbMat);
-    curbL.position.set(-21, 0.15, z + 5);
-    curbL.receiveShadow = true;
-    scene.add(curbL);
-
-    // 右縁石
-    const curbR = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 10), curbMat);
-    curbR.position.set(21, 0.15, z + 5);
-    curbR.receiveShadow = true;
-    scene.add(curbR);
-  }
-
-  // --- 4. 完全自作のスポーツカーモデル構築 ---
-  const car = new THREE.Group();
-
-  // ① 車体下部（メインボディ - 鮮やかな赤色メタリック）
-  const bodyGeo = new THREE.BoxGeometry(2.2, 0.6, 4.5);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.7, roughness: 0.2 });
-  const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-  bodyMesh.position.y = 0.5;
-  bodyMesh.castShadow = true;
-  car.add(bodyMesh);
-
-  // ② キャビン（コックピットガラス - 黒ツヤ）
-  const glassGeo = new THREE.BoxGeometry(1.8, 0.55, 2.2);
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.9 });
-  const glassMesh = new THREE.Mesh(glassGeo, glassMat);
-  glassMesh.position.set(0, 1.0, -0.2);
-  glassMesh.castShadow = true;
-  car.add(glassMesh);
-
-  // ③ リアウイング（GTウィング）
-  const wingMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
-  const wingBoard = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.6), wingMat);
-  wingBoard.position.set(0, 1.3, -2.0);
-  wingBoard.castShadow = true;
-  car.add(wingBoard);
-
-  const wingPole1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.2), wingMat);
-  wingPole1.position.set(-0.8, 1.05, -2.0);
-  car.add(wingPole1);
-
-  const wingPole2 = wingPole1.clone();
-  wingPole2.position.x = 0.8;
-  car.add(wingPole2);
-
-  // ④ ヘッドライト（発光表現）
-  const lightMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-  const lightL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.1), lightMat);
-  lightL.position.set(-0.7, 0.6, 2.26);
-  car.add(lightL);
-
-  const lightR = lightL.clone();
-  lightR.position.x = 0.7;
-  car.add(lightR);
-
-  // ⑤ リアルなホイール付きタイヤ（4輪）
-  const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.4, 24);
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.8 });
-  const rimGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.42, 12);
-  const rimMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.1 });
-
-  const createWheel = (x, y, z) => {
-    const wheelGroup = new THREE.Group();
-    const tire = new THREE.Mesh(wheelGeo, wheelMat);
-    tire.rotation.z = Math.PI / 2;
-    tire.castShadow = true;
-    wheelGroup.add(tire);
-
-    const rim = new THREE.Mesh(rimGeo, rimMat);
-    rim.rotation.z = Math.PI / 2;
-    wheelGroup.add(rim);
-
-    wheelGroup.position.set(x, y, z);
-    return wheelGroup;
-  };
-
-  car.add(createWheel(-1.2, 0.45, 1.4));  // 前左
-  car.add(createWheel(1.2, 0.45, 1.4));   // 前右
-  car.add(createWheel(-1.2, 0.45, -1.4)); // 後左
-  car.add(createWheel(1.2, 0.45, -1.4));  // 後右
-
-  scene.add(car);
-
-  // --- 5. 操作・走行メカニズム ---
-  let speed = 0;
-  let angle = 0;
-  const maxSpeed = 1.6;
-  const accel = 0.02;
-  const friction = 0.985;
-
-  const keys = { up: false, down: false, left: false, right: false };
-
-  window.addEventListener('keydown', e => {
-    if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
-    if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
-    if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
-    if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
-  });
-  window.addEventListener('keyup', e => {
-    if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
-    if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
-    if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
-    if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
-  });
-
-  const setupBtn = (id, key) => {
-    const btn = document.getElementById(id);
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
-    btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
-    btn.addEventListener('mousedown', () => keys[key] = true);
-    btn.addEventListener('mouseup', () => keys[key] = false);
-  };
-  setupBtn('btnAccel', 'up');
-  setupBtn('btnBrake', 'down');
-  setupBtn('btnLeft', 'left');
-  setupBtn('btnRight', 'right');
-
-  // --- 6. アニメーションループ ---
-  function animate() {
-    requestAnimationFrame(animate);
-
-    // 加速・ブレーキ
-    if (keys.up) speed = Math.min(speed + accel, maxSpeed);
-    else if (keys.down) speed = Math.max(speed - accel, -0.4);
-    else speed *= friction;
-
-    // ハンドル操作（速度が出ている時ほど曲がる）
-    if (Math.abs(speed) > 0.01) {
-      const dir = speed > 0 ? 1 : -1;
-      if (keys.left) angle += 0.028 * dir;
-      if (keys.right) angle -= 0.028 * dir;
+      // クエストリスト描画
+      questListEl.innerHTML = '';
+      state.quests.forEach(quest => {
+        const card = document.createElement('div');
+        card.className = `quest-card ${quest.completed ? 'completed' : ''}`;
+        card.innerHTML = `
+          <div class="quest-info">
+            <div class="quest-title ${quest.completed ? 'completed-text' : ''}">${quest.title}</div>
+            <div class="quest-reward">+${quest.xp} XP</div>
+          </div>
+          <button class="complete-btn ${quest.completed ? 'done' : ''}" onclick="toggleQuest(${quest.id})">
+            ${quest.completed ? '✓ 完了' : '撃破!'}
+          </button>
+        `;
+        questListEl.appendChild(card);
+      });
     }
 
-    car.rotation.y = angle;
-    car.position.x += Math.sin(angle) * speed;
-    car.position.z += Math.cos(angle) * speed;
+    // クエスト完了（トグル）処理
+    function toggleQuest(id) {
+      const quest = state.quests.find(q => q.id === id);
+      if (!quest) return;
 
-    // 迫力のあるダイナミック・カメラワーク（斜め後ろ低めの視点）
-    const cameraTargetX = car.position.x - Math.sin(angle) * 7;
-    const cameraTargetZ = car.position.z - Math.cos(angle) * 7;
-    
-    camera.position.x += (cameraTargetX - camera.position.x) * 0.1;
-    camera.position.y += ((car.position.y + 2.8) - camera.position.y) * 0.1;
-    camera.position.z += (cameraTargetZ - camera.position.z) * 0.1;
-    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z);
+      if (!quest.completed) {
+        quest.completed = true;
+        addXp(quest.xp);
+      }
+      render();
+    }
 
-    // メーター更新
-    document.getElementById('speed').innerText = Math.round(Math.abs(speed) * 170);
+    // 経験値獲得＆レベルアップ判定
+    function addXp(amount) {
+      state.xp += amount;
+      if (state.xp >= state.maxXp) {
+        state.xp -= state.maxXp;
+        state.level += 1;
+        state.maxXp = Math.floor(state.maxXp * 1.3); // 次のレベルまでの必要XPを増加
+        showLevelUpModal();
+      }
+    }
 
-    renderer.render(scene, camera);
-  }
+    // モーダル表示
+    function showLevelUpModal() {
+      document.getElementById('newLevelText').textContent = state.level;
+      levelUpModal.classList.add('show');
+    }
 
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+    function closeModal() {
+      levelUpModal.classList.remove('show');
+    }
 
-  animate();
-</script>
+    // クエスト追加
+    addBtnEl.addEventListener('click', () => {
+      const text = questInputEl.value.trim();
+      if (!text) return;
+
+      const newQuest = {
+        id: Date.now(),
+        title: text,
+        xp: Math.floor(Math.random() * 30) + 30, // 30~60のランダムXP
+        completed: false
+      };
+
+      state.quests.push(newQuest);
+      questInputEl.value = '';
+      render();
+    });
+
+    // 初期化
+    render();
+  </script>
 </body>
 </html>
