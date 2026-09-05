@@ -3,36 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>3D Race Game Prototype</title>
+  <title>3D Race Game - Generated Car & Circuit</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
     #ui {
-      position: absolute; top: 10px; left: 10px; color: white;
-      text-shadow: 1px 1px 3px black; pointer-events: none;
+      position: absolute; top: 15px; left: 15px; color: white;
+      text-shadow: 2px 2px 4px black; pointer-events: none; z-index: 10;
     }
+    .speed-badge { font-size: 32px; font-weight: bold; color: #38bdf8; }
     .controls {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 15px; z-index: 10;
     }
     .btn {
       width: 70px; height: 70px; font-size: 24px; font-weight: bold;
-      background: rgba(255, 255, 255, 0.3); color: white; border: 2px solid white;
-      border-radius: 50%; backdrop-filter: blur(5px);
+      background: rgba(255, 255, 255, 0.25); color: white; border: 2px solid rgba(255, 255, 255, 0.8);
+      border-radius: 50%; backdrop-filter: blur(8px); touch-action: manipulation;
     }
-    .btn:active { background: rgba(255, 255, 255, 0.7); color: black; }
+    .btn:active { background: rgba(56, 189, 248, 0.8); }
   </style>
-  <!-- Three.js (3Dグラフィックライブラリ) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
   <div id="ui">
-    <h2>🏎️ 3D RACE PROTOTYPE</h2>
-    <p>速度: <span id="speed">0</span> km/h</p>
-    <p><small>PC: 矢印キー（[↑]加速 / [↓]減速・バック / [←][→]ハンドル）</small></p>
+    <h2>🏎️ 3D CIRCUIT DRIVE</h2>
+    <div class="speed-badge"><span id="speed">0</span> <small style="font-size: 16px;">km/h</small></div>
   </div>
 
-  <!-- スマホ用タッチボタン -->
   <div class="controls">
     <button class="btn" id="btnLeft">◀</button>
     <button class="btn" id="btnAccel">▲</button>
@@ -41,96 +39,152 @@
   </div>
 
 <script>
-  // --- 1. 3Dシーンとカメラの設定 ---
+  // --- 1. シーン・カメラ・レンダラーの設定 ---
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x87ceeb); // 空色
-  scene.fog = new THREE.Fog(0x87ceeb, 20, 150);  // 遠くを霞ませるフォグ効果
+  scene.background = new THREE.Color(0x60a5fa); // 鮮やかな青空
+  scene.fog = new THREE.FogExp2(0x60a5fa, 0.008); // 奥行きを出すフォグ
 
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true; // 影を有効化
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.body.appendChild(renderer.domElement);
 
-  // --- 2. 照明（ライティング）の設定 ---
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // 環境光
+  // --- 2. 太陽光と照明 ---
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
 
-  const sunLight = new THREE.DirectionalLight(0xffffff, 0.8); // 太陽光
-  sunLight.position.set(50, 80, 50);
-  sunLight.castShadow = true;
-  sunLight.shadow.mapSize.width = 2048;
-  sunLight.shadow.mapSize.height = 2048;
-  scene.add(sunLight);
+  const sun = new THREE.DirectionalLight(0xfffbeb, 1.2);
+  sun.position.set(100, 150, 50);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width = 2048;
+  sun.shadow.mapSize.height = 2048;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 300;
+  sun.shadow.camera.left = -100;
+  sun.shadow.camera.right = 100;
+  sun.shadow.camera.top = 100;
+  sun.shadow.camera.bottom = -100;
+  scene.add(sun);
 
-  // --- 3. 地面（コース）の作成 ---
-  const groundGeometry = new THREE.PlaneGeometry(300, 300);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
-  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
+  // --- 3. アスファルト道路とコース縁石 ---
+  // 広大な芝生
+  const grassGeo = new THREE.PlaneGeometry(1000, 1000);
+  const grassMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.9 });
+  const grass = new THREE.Mesh(grassGeo, grassMat);
+  grass.rotation.x = -Math.PI / 2;
+  grass.receiveShadow = true;
+  scene.add(grass);
 
-  // コース上の障害物・街灯ポールをランダム配置
-  for (let i = 0; i < 40; i++) {
-    const poleGeo = new THREE.BoxGeometry(1, 6, 1);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c });
-    const pole = new THREE.Mesh(poleGeo, poleMat);
-    pole.position.set((Math.random() - 0.5) * 200, 3, (Math.random() - 0.5) * 200);
-    pole.castShadow = true;
-    scene.add(pole);
+  // 幅広アスファルト道路（直線＆広場コース）
+  const roadGeo = new THREE.PlaneGeometry(40, 1000);
+  const roadMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.7 });
+  const road = new THREE.Mesh(roadGeo, roadMat);
+  road.rotation.x = -Math.PI / 2;
+  road.position.y = 0.01;
+  road.receiveShadow = true;
+  scene.add(road);
+
+  // 赤と白の縁石（ゼブラゾーン）を両脇に作成
+  for (let z = -500; z < 500; z += 10) {
+    const isRed = (Math.abs(z) / 10) % 2 === 0;
+    const curbMat = new THREE.MeshStandardMaterial({ color: isRed ? 0xef4444 : 0xf8fafc });
+    
+    // 左縁石
+    const curbL = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 10), curbMat);
+    curbL.position.set(-21, 0.15, z + 5);
+    curbL.receiveShadow = true;
+    scene.add(curbL);
+
+    // 右縁石
+    const curbR = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 10), curbMat);
+    curbR.position.set(21, 0.15, z + 5);
+    curbR.receiveShadow = true;
+    scene.add(curbR);
   }
 
-  // --- 4. 自車（3Dモデルの簡易構築） ---
-  const carGroup = new THREE.Group();
+  // --- 4. 完全自作のスポーツカーモデル構築 ---
+  const car = new THREE.Group();
 
-  // 車体（ボディ）
-  const bodyGeo = new THREE.BoxGeometry(2, 0.8, 4);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.6, roughness: 0.2 }); // 金属光沢
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.position.y = 0.6;
-  body.castShadow = true;
-  carGroup.add(body);
+  // ① 車体下部（メインボディ - 鮮やかな赤色メタリック）
+  const bodyGeo = new THREE.BoxGeometry(2.2, 0.6, 4.5);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.7, roughness: 0.2 });
+  const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+  bodyMesh.position.y = 0.5;
+  bodyMesh.castShadow = true;
+  car.add(bodyMesh);
 
-  // キャビン（屋根部分）
-  const cabinGeo = new THREE.BoxGeometry(1.6, 0.6, 2);
-  const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.1 });
-  const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-  cabin.position.set(0, 1.2, -0.3);
-  cabin.castShadow = true;
-  carGroup.add(cabin);
+  // ② キャビン（コックピットガラス - 黒ツヤ）
+  const glassGeo = new THREE.BoxGeometry(1.8, 0.55, 2.2);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.9 });
+  const glassMesh = new THREE.Mesh(glassGeo, glassMat);
+  glassMesh.position.set(0, 1.0, -0.2);
+  glassMesh.castShadow = true;
+  car.add(glassMesh);
 
-  // タイヤ（4つ）
-  const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-  const wheelPositions = [
-    [-1.1, 0.4, 1.2],  // 前左
-    [1.1, 0.4, 1.2],   // 前右
-    [-1.1, 0.4, -1.2], // 後左
-    [1.1, 0.4, -1.2]   // 後右
-  ];
-  wheelPositions.forEach(pos => {
-    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-    wheel.rotation.z = Math.PI / 2;
-    wheel.position.set(...pos);
-    wheel.castShadow = true;
-    carGroup.add(wheel);
-  });
+  // ③ リアウイング（GTウィング）
+  const wingMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+  const wingBoard = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.6), wingMat);
+  wingBoard.position.set(0, 1.3, -2.0);
+  wingBoard.castShadow = true;
+  car.add(wingBoard);
 
-  scene.add(carGroup);
+  const wingPole1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.2), wingMat);
+  wingPole1.position.set(-0.8, 1.05, -2.0);
+  car.add(wingPole1);
 
-  // --- 5. 物理挙動・操作ロジック ---
+  const wingPole2 = wingPole1.clone();
+  wingPole2.position.x = 0.8;
+  car.add(wingPole2);
+
+  // ④ ヘッドライト（発光表現）
+  const lightMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+  const lightL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.1), lightMat);
+  lightL.position.set(-0.7, 0.6, 2.26);
+  car.add(lightL);
+
+  const lightR = lightL.clone();
+  lightR.position.x = 0.7;
+  car.add(lightR);
+
+  // ⑤ リアルなホイール付きタイヤ（4輪）
+  const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.4, 24);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.8 });
+  const rimGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.42, 12);
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.1 });
+
+  const createWheel = (x, y, z) => {
+    const wheelGroup = new THREE.Group();
+    const tire = new THREE.Mesh(wheelGeo, wheelMat);
+    tire.rotation.z = Math.PI / 2;
+    tire.castShadow = true;
+    wheelGroup.add(tire);
+
+    const rim = new THREE.Mesh(rimGeo, rimMat);
+    rim.rotation.z = Math.PI / 2;
+    wheelGroup.add(rim);
+
+    wheelGroup.position.set(x, y, z);
+    return wheelGroup;
+  };
+
+  car.add(createWheel(-1.2, 0.45, 1.4));  // 前左
+  car.add(createWheel(1.2, 0.45, 1.4));   // 前右
+  car.add(createWheel(-1.2, 0.45, -1.4)); // 後左
+  car.add(createWheel(1.2, 0.45, -1.4));  // 後右
+
+  scene.add(car);
+
+  // --- 5. 操作・走行メカニズム ---
   let speed = 0;
   let angle = 0;
-  const maxSpeed = 1.2;
-  const maxReverse = -0.3;
-  const accel = 0.015;
-  const friction = 0.98;
+  const maxSpeed = 1.6;
+  const accel = 0.02;
+  const friction = 0.985;
 
   const keys = { up: false, down: false, left: false, right: false };
 
-  // キーボードイベント
   window.addEventListener('keydown', e => {
     if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
     if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
@@ -144,7 +198,6 @@
     if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
   });
 
-  // タッチボタンイベント
   const setupBtn = (id, key) => {
     const btn = document.getElementById(id);
     btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
@@ -157,43 +210,41 @@
   setupBtn('btnLeft', 'left');
   setupBtn('btnRight', 'right');
 
-  // --- 6. ゲームループ ---
+  // --- 6. アニメーションループ ---
   function animate() {
     requestAnimationFrame(animate);
 
-    // 加速・減速
+    // 加速・ブレーキ
     if (keys.up) speed = Math.min(speed + accel, maxSpeed);
-    else if (keys.down) speed = Math.max(speed - accel, maxReverse);
-    else speed *= friction; // 摩擦で自然減速
+    else if (keys.down) speed = Math.max(speed - accel, -0.4);
+    else speed *= friction;
 
-    // ステアリング（動いている時だけ曲がる）
+    // ハンドル操作（速度が出ている時ほど曲がる）
     if (Math.abs(speed) > 0.01) {
       const dir = speed > 0 ? 1 : -1;
-      if (keys.left) angle += 0.03 * dir;
-      if (keys.right) angle -= 0.03 * dir;
+      if (keys.left) angle += 0.028 * dir;
+      if (keys.right) angle -= 0.028 * dir;
     }
 
-    // 位置と回転の更新
-    carGroup.rotation.y = angle;
-    carGroup.position.x += Math.sin(angle) * speed;
-    carGroup.position.z += Math.cos(angle) * speed;
+    car.rotation.y = angle;
+    car.position.x += Math.sin(angle) * speed;
+    car.position.z += Math.cos(angle) * speed;
 
-    // カメラの追従（車体構造の後方上部から追従）
-    const cameraOffset = new THREE.Vector3(
-      carGroup.position.x - Math.sin(angle) * 10,
-      carGroup.position.y + 5,
-      carGroup.position.z - Math.cos(angle) * 10
-    );
-    camera.position.lerp(cameraOffset, 0.1); // 滑らかに追従
-    camera.lookAt(carGroup.position.x, carGroup.position.y + 1, carGroup.position.z);
+    // 迫力のあるダイナミック・カメラワーク（斜め後ろ低めの視点）
+    const cameraTargetX = car.position.x - Math.sin(angle) * 7;
+    const cameraTargetZ = car.position.z - Math.cos(angle) * 7;
+    
+    camera.position.x += (cameraTargetX - camera.position.x) * 0.1;
+    camera.position.y += ((car.position.y + 2.8) - camera.position.y) * 0.1;
+    camera.position.z += (cameraTargetZ - camera.position.z) * 0.1;
+    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z);
 
-    // UI更新
-    document.getElementById('speed').innerText = Math.round(Math.abs(speed) * 150);
+    // メーター更新
+    document.getElementById('speed').innerText = Math.round(Math.abs(speed) * 170);
 
     renderer.render(scene, camera);
   }
 
-  // 画面リサイズ対応
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
