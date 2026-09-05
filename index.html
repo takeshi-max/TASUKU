@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>3D Race Game Prototype</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+    #ui {
+      position: absolute; top: 10px; left: 10px; color: white;
+      text-shadow: 1px 1px 3px black; pointer-events: none;
+    }
+    .controls {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 15px; z-index: 10;
+    }
+    .btn {
+      width: 70px; height: 70px; font-size: 24px; font-weight: bold;
+      background: rgba(255, 255, 255, 0.3); color: white; border: 2px solid white;
+      border-radius: 50%; backdrop-filter: blur(5px);
+    }
+    .btn:active { background: rgba(255, 255, 255, 0.7); color: black; }
+  </style>
+  <!-- Three.js (3Dグラフィックライブラリ) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="ui">
+    <h2>🏎️ 3D RACE PROTOTYPE</h2>
+    <p>速度: <span id="speed">0</span> km/h</p>
+    <p><small>PC: 矢印キー（[↑]加速 / [↓]減速・バック / [←][→]ハンドル）</small></p>
+  </div>
+
+  <!-- スマホ用タッチボタン -->
+  <div class="controls">
+    <button class="btn" id="btnLeft">◀</button>
+    <button class="btn" id="btnAccel">▲</button>
+    <button class="btn" id="btnBrake">▼</button>
+    <button class="btn" id="btnRight">▶</button>
+  </div>
+
+<script>
+  // --- 1. 3Dシーンとカメラの設定 ---
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87ceeb); // 空色
+  scene.fog = new THREE.Fog(0x87ceeb, 20, 150);  // 遠くを霞ませるフォグ効果
+
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true; // 影を有効化
+  document.body.appendChild(renderer.domElement);
+
+  // --- 2. 照明（ライティング）の設定 ---
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // 環境光
+  scene.add(ambientLight);
+
+  const sunLight = new THREE.DirectionalLight(0xffffff, 0.8); // 太陽光
+  sunLight.position.set(50, 80, 50);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.width = 2048;
+  sunLight.shadow.mapSize.height = 2048;
+  scene.add(sunLight);
+
+  // --- 3. 地面（コース）の作成 ---
+  const groundGeometry = new THREE.PlaneGeometry(300, 300);
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // コース上の障害物・街灯ポールをランダム配置
+  for (let i = 0; i < 40; i++) {
+    const poleGeo = new THREE.BoxGeometry(1, 6, 1);
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c });
+    const pole = new THREE.Mesh(poleGeo, poleMat);
+    pole.position.set((Math.random() - 0.5) * 200, 3, (Math.random() - 0.5) * 200);
+    pole.castShadow = true;
+    scene.add(pole);
+  }
+
+  // --- 4. 自車（3Dモデルの簡易構築） ---
+  const carGroup = new THREE.Group();
+
+  // 車体（ボディ）
+  const bodyGeo = new THREE.BoxGeometry(2, 0.8, 4);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.6, roughness: 0.2 }); // 金属光沢
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.6;
+  body.castShadow = true;
+  carGroup.add(body);
+
+  // キャビン（屋根部分）
+  const cabinGeo = new THREE.BoxGeometry(1.6, 0.6, 2);
+  const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.1 });
+  const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+  cabin.position.set(0, 1.2, -0.3);
+  cabin.castShadow = true;
+  carGroup.add(cabin);
+
+  // タイヤ（4つ）
+  const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  const wheelPositions = [
+    [-1.1, 0.4, 1.2],  // 前左
+    [1.1, 0.4, 1.2],   // 前右
+    [-1.1, 0.4, -1.2], // 後左
+    [1.1, 0.4, -1.2]   // 後右
+  ];
+  wheelPositions.forEach(pos => {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(...pos);
+    wheel.castShadow = true;
+    carGroup.add(wheel);
+  });
+
+  scene.add(carGroup);
+
+  // --- 5. 物理挙動・操作ロジック ---
+  let speed = 0;
+  let angle = 0;
+  const maxSpeed = 1.2;
+  const maxReverse = -0.3;
+  const accel = 0.015;
+  const friction = 0.98;
+
+  const keys = { up: false, down: false, left: false, right: false };
+
+  // キーボードイベント
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
+    if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
+    if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+  });
+  window.addEventListener('keyup', e => {
+    if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
+    if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
+    if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+  });
+
+  // タッチボタンイベント
+  const setupBtn = (id, key) => {
+    const btn = document.getElementById(id);
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
+    btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+    btn.addEventListener('mousedown', () => keys[key] = true);
+    btn.addEventListener('mouseup', () => keys[key] = false);
+  };
+  setupBtn('btnAccel', 'up');
+  setupBtn('btnBrake', 'down');
+  setupBtn('btnLeft', 'left');
+  setupBtn('btnRight', 'right');
+
+  // --- 6. ゲームループ ---
+  function animate() {
+    requestAnimationFrame(animate);
+
+    // 加速・減速
+    if (keys.up) speed = Math.min(speed + accel, maxSpeed);
+    else if (keys.down) speed = Math.max(speed - accel, maxReverse);
+    else speed *= friction; // 摩擦で自然減速
+
+    // ステアリング（動いている時だけ曲がる）
+    if (Math.abs(speed) > 0.01) {
+      const dir = speed > 0 ? 1 : -1;
+      if (keys.left) angle += 0.03 * dir;
+      if (keys.right) angle -= 0.03 * dir;
+    }
+
+    // 位置と回転の更新
+    carGroup.rotation.y = angle;
+    carGroup.position.x += Math.sin(angle) * speed;
+    carGroup.position.z += Math.cos(angle) * speed;
+
+    // カメラの追従（車体構造の後方上部から追従）
+    const cameraOffset = new THREE.Vector3(
+      carGroup.position.x - Math.sin(angle) * 10,
+      carGroup.position.y + 5,
+      carGroup.position.z - Math.cos(angle) * 10
+    );
+    camera.position.lerp(cameraOffset, 0.1); // 滑らかに追従
+    camera.lookAt(carGroup.position.x, carGroup.position.y + 1, carGroup.position.z);
+
+    // UI更新
+    document.getElementById('speed').innerText = Math.round(Math.abs(speed) * 150);
+
+    renderer.render(scene, camera);
+  }
+
+  // 画面リサイズ対応
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  animate();
+</script>
+</body>
+</html>
